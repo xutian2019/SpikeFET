@@ -1,105 +1,76 @@
-echo "****************** Installing pytorch ******************"
-#conda install pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=11.3 -c pytorch
-pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
+#!/usr/bin/env bash
+set -euo pipefail
 
-echo ""
-echo ""
-echo "****************** Installing yaml ******************"
-pip install PyYAML
+# Reuse the PyTorch installation from the active environment.  The original
+# script forced torch 1.12.1/cu113, which would replace a working installation.
+echo "****************** Checking existing PyTorch ******************"
+python - <<'PY'
+import sys
 
-echo ""
-echo ""
-echo "****************** Installing easydict ******************"
-pip install easydict
+try:
+    import torch
+except ImportError as exc:
+    raise SystemExit(
+        "PyTorch is not installed in the active environment. "
+        "Install a compatible PyTorch build first."
+    ) from exc
 
-echo ""
-echo ""
-echo "****************** Installing cython ******************"
-pip install cython
+print(f"Python: {sys.version.split()[0]}")
+print(f"PyTorch: {torch.__version__}")
+print(f"Torch CUDA: {torch.version.cuda}")
+print(f"CUDA available: {torch.cuda.is_available()}")
 
-echo ""
-echo ""
-echo "****************** Installing opencv-python ******************"
-pip install opencv-python
+if not torch.cuda.is_available():
+    raise SystemExit(
+        "CUDA is not available to PyTorch. Check the active environment and driver."
+    )
+PY
 
-echo ""
-echo ""
-echo "****************** Installing pandas ******************"
-pip install pandas
+echo "****************** Installing SpikeFET dependencies ******************"
+# Older visdom packaging imports pkg_resources while building.  setuptools
+# 81+ removed that compatibility module; this does not change PyTorch.
+python -m pip install "setuptools<81"
 
-echo ""
-echo ""
-echo "****************** Installing tqdm ******************"
-pip install tqdm
+python -m pip install \
+    PyYAML \
+    easydict \
+    cython \
+    opencv-python \
+    pandas \
+    tqdm \
+    pycocotools \
+    jpeg4py \
+    tb-nightly \
+    tikzplotlib \
+    thop \
+    colorama \
+    lmdb \
+    scipy \
+    tensorboardX \
+    wandb \
+    dv-processing
 
-echo ""
-echo ""
-echo "****************** Installing coco toolkit ******************"
-pip install pycocotools
+# SpikeFET uses the legacy spikingjelly.clock_driven API.  Version 0.0.0.0.14
+# renamed that API, so keep the last compatible stable release here.
+python -m pip install "spikingjelly==0.0.0.0.12"
 
-echo ""
-echo ""
-echo "****************** Installing jpeg4py python wrapper ******************"
-pip install jpeg4py
+# Build visdom against the setuptools installed above instead of an isolated
+# build environment that may pull a newer setuptools without pkg_resources.
+python -m pip install --no-build-isolation visdom
 
-echo ""
-echo ""
-echo "****************** Installing tensorboard ******************"
-pip install tb-nightly
+# SpikeFET imports timm.models.layers, which is the API used by timm 0.6.x.
+# Install it without dependencies so pip cannot replace the existing torch.
+python -m pip install --no-deps "timm==0.6.13"
 
-echo ""
-echo ""
-echo "****************** Installing tikzplotlib ******************"
-pip install tikzplotlib
+echo "****************** Verifying installation ******************"
+python - <<'PY'
+import cv2
+import torch
+import timm
+import yaml
 
-echo ""
-echo ""
-echo "****************** Installing thop tool for FLOPs and Params computing ******************"
-pip install thop
-
-echo ""
-echo ""
-echo "****************** Installing colorama ******************"
-pip install colorama
-
-echo ""
-echo ""
-echo "****************** Installing lmdb ******************"
-pip install lmdb
-
-echo ""
-echo ""
-echo "****************** Installing scipy ******************"
-pip install scipy
-
-echo ""
-echo ""
-echo "****************** Installing visdom ******************"
-pip install visdom
-
-
-echo ""
-echo ""
-echo "****************** Installing tensorboardX ******************"
-pip install tensorboardX
-
-
-echo ""
-echo ""
-echo "****************** Downgrade setuptools ******************"
-pip install setuptools==59.5.0
-
-
-echo ""
-echo ""
-echo "****************** Installing wandb ******************"
-pip install wandb
-
-echo ""
-echo ""
-echo "****************** Installing timm ******************"
-pip install timm
-
-echo ""
-echo ""
-echo "****************** Installation complete! ******************"
+print(f"OpenCV: {cv2.__version__}")
+print(f"timm: {timm.__version__}")
+print(f"PyTorch: {torch.__version__}, CUDA available: {torch.cuda.is_available()}")
+print("Installation complete.")
+PY

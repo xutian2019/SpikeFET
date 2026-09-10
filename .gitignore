@@ -1,0 +1,5 @@
+checkpoints
+__pycache__/
+SpikeET/VisEvent_workspace/results/
+VisEvent_workspace/results
+.vscode
